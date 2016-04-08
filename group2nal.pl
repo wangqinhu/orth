@@ -6,11 +6,13 @@ use warnings;
 my $group = "data/groups.txt";
 my $pep   = "data/pep.fa";
 my $cds = "data/cds.fa";
+my $list = "data/gene.id";
 my $output_dir = "output";
 
 my %group = load_group($group);
 my %pep = load_seq($pep);
 my %cds = load_seq($cds);
+my @list = load_list($list);
 
 group2nal();
 
@@ -18,6 +20,7 @@ group2nal();
 sub group2nal {
 	create_dir();
 	foreach my $group_id (sort keys %group) {
+		next unless group_has_id($group_id);
 		my $pep_file = extract_pep_seq($group_id);
 		my $pal_file = pep_align($group_id, $pep_file);
 		pal2nal($group_id, $pal_file);
@@ -124,3 +127,23 @@ sub load_seq {
 	return %seq;
 }
 
+sub group_has_id {
+	my $group_id = shift;
+	foreach my $list (@list) {
+		return 1 if $group{$group_id} =~ /$list/;
+	}
+	return 0;
+}
+
+sub load_list {
+	my $list = shift;
+	my @list = ();
+	open (IN, $list) or die "Cannot open file $list: $!\n";
+	while (<IN>) {
+		chomp;
+		next if /^\s*$/;
+		push @list, $_;
+	}
+	close IN;
+	return @list;
+}
