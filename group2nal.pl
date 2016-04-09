@@ -3,11 +3,11 @@
 use strict;
 use warnings;
 
-my $group = "data/groups.txt";
+my $group = $ARGV[0];
 my $pep   = "data/pep.fa";
 my $cds = "data/cds.fa";
 my $list = "data/gene.id";
-my $output_dir = "output";
+my $output_dir = $ARGV[1];
 
 my %group = load_group($group);
 my %pep = load_seq($pep);
@@ -40,9 +40,8 @@ sub extract_pep_seq {
 	my @pep_id = split /\s+/, $group{$group_id};
 	my $buffer = undef;
 	# seq to buffer
-	foreach my $tag_seq_id (@pep_id) {
-		next if $tag_seq_id =~ /^\s*$/;
-		my ($tag, $seq_id) = split /\|/, $tag_seq_id;
+	foreach my $seq_id (@pep_id) {
+		next if $seq_id =~ /^\s*$/;
 		if (! exists $pep{$seq_id}) {
 			warn "$seq_id is not found in $pep.\n";
 		} else {
@@ -78,9 +77,8 @@ sub extract_nt_seq {
 	my @pep_id = split /\s+/, $group{$group_id};
 	my $buffer = undef;
 	# seq to buffer
-	foreach my $tag_seq_id (@pep_id) {
-		next if $tag_seq_id =~ /^\s*$/;
-		my ($tag, $seq_id) = split /\|/, $tag_seq_id;
+	foreach my $seq_id (@pep_id) {
+		next if $seq_id =~ /^\s*$/;
 		if (! exists $cds{$seq_id}) {
 			warn "$seq_id is not found in $cds.\n";
 		} else {
