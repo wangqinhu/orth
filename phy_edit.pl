@@ -16,6 +16,7 @@ my $output_dir = "output_dir";
 #----------------------------------------------------------
 my %phy = ();
 my %edit = load_edit($edit);
+my %fungi = load_fungi();
 
 #----------------------------------------------------------
 # main
@@ -192,16 +193,23 @@ sub load_fasta {
 	return %seq;
 }
 
+sub load_fungi {
+	my %fungi = ();
+	my @fungi = qw(Fg Fv Fs Ac Uv Cg Vd Sa Mo Nc Nt Sm Sb Pm Bc Ss Pp An Tr Ci Ep Pt Pn Dh Po Ca Sc Yl Sp Cn Pg Um);
+	my $i = 0;
+	foreach my $id (@fungi) {
+		$fungi{$id} = $i;
+		$i++;
+	}
+	return %fungi;
+}
+
 sub query_col {
 	my $grp_id = shift;
 	my $fg_id = shift;
 	my $pos = shift;
 	my $seqref = shift;
-	print "$grp_id\t$fg_id\t$pos\n";
-	$phy{$grp_id}{$fg_id}{$pos} = base_in_seq($seqref, $fg_id, $pos);
-	print "$grp_id\t$fg_id\t$pos\t$phy{$grp_id}{$fg_id}{$pos}\n";
-	foreach my $seq_id (sort keys $seqref) {
-		next if $seq_id eq $fg_id;
+	foreach my $seq_id (sort by_fungi keys $seqref) {
 		$phy{$grp_id}{$seq_id}{$pos} = base_in_aln($seqref, $seq_id, $pos, $fg_id);
 		print "$grp_id\t$seq_id\t$pos\t$phy{$grp_id}{$seq_id}{$pos}\n";
 	}
@@ -238,19 +246,10 @@ sub base_in_aln {
 	return $base;
 }
 
-sub base_in_seq {
-	my $seqref = shift;
-	my $seq_id = shift;
-	my $pos = shift;
-	my $base = 'X';
-	my $seq = $seqref->{$seq_id};
-	$seq =~ s/\-//g;
-	my @gap0 = split //, $seq;
-	return $base if $pos > @gap0;
-	$base = $gap0[$pos - 1];
-	return $base;
-}
-
 sub by_num {
 	$a <=> $b;
+}
+
+sub by_fungi {
+	$fungi{substr($a,0,2)} <=> $fungi{substr($b,0,2)};
 }
