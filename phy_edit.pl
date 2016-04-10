@@ -17,6 +17,7 @@ my $output_dir = "output_dir";
 my %phy = ();
 my %edit = load_edit($edit);
 my %fungi = load_fungi();
+my $num_flank_codon = 2;
 
 #----------------------------------------------------------
 # main
@@ -210,8 +211,17 @@ sub query_col {
 	my $pos = shift;
 	my $seqref = shift;
 	foreach my $seq_id (sort by_fungi keys $seqref) {
-		$phy{$grp_id}{$seq_id}{$pos} = base_in_aln($seqref, $seq_id, $pos, $fg_id);
-		print "$grp_id\t$seq_id\t$pos\t$phy{$grp_id}{$seq_id}{$pos}\n";
+		my $left = $num_flank_codon * 3 + ($pos+2) % 3;
+		my $right = 2 - ($pos+2) % 3 + $num_flank_codon * 3;
+		print "$grp_id\t$seq_id\t$pos\t";
+		for (my $i = $pos - $left; $i <= $pos + $right; $i++) {
+			$phy{$grp_id}{$seq_id}{$pos}{$i} = base_in_aln($seqref, $seq_id, $i, $fg_id);
+			if ($i != $pos) {
+				$phy{$grp_id}{$seq_id}{$pos}{$i} = lc($phy{$grp_id}{$seq_id}{$pos}{$i});
+			}
+			print "$phy{$grp_id}{$seq_id}{$pos}{$i}";
+		}
+		print "\n";
 	}
 }
 
