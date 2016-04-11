@@ -19,6 +19,9 @@ my %edit = load_edit($edit);
 my %fungi = load_fungi();
 my $num_flank_codon = 5;
 my %codon_table = codon_table();
+my %phy_rna = ();
+my %phy_aa = ();
+my %phy_edit = ();
 
 #----------------------------------------------------------
 # main
@@ -50,6 +53,7 @@ sub phy_edit {
 			}
 		}
 	}
+	my %type = phy_var();
 }
 
 sub remove_redundancy {
@@ -211,22 +215,39 @@ sub query_col {
 	my $fg_id = shift;
 	my $pos = shift;
 	my $seqref = shift;
+	# query bases
 	foreach my $seq_id (sort by_fungi keys $seqref) {
 		my $left = $num_flank_codon * 3 + ($pos+2) % 3;
 		my $right = 2 - ($pos+2) % 3 + $num_flank_codon * 3;
 		my $tag = substr($seq_id, 0, 2);
 		print "$grp_id\t$tag\t$pos\t";
-		my $rna = undef;
+		$phy_rna{$grp_id}{$seq_id}{$pos} = "";
 		for (my $i = $pos - $left; $i <= $pos + $right; $i++) {
-			$phy{$grp_id}{$seq_id}{$pos}{$i} = base_in_aln($seqref, $seq_id, $i, $fg_id);
+			$phy{$grp_id}{$pos}{$seq_id}{$i} = base_in_aln($seqref, $seq_id, $i, $fg_id);
 			if ($i != $pos) {
-				$phy{$grp_id}{$seq_id}{$pos}{$i} = lc($phy{$grp_id}{$seq_id}{$pos}{$i});
+				$phy{$grp_id}{$pos}{$seq_id}{$i} = lc($phy{$grp_id}{$pos}{$seq_id}{$i});
+			} else {
+				$phy_edit{$grp_id}{$pos}{$seq_id} = $phy{$grp_id}{$pos}{$seq_id}{$i};
 			}
-			$rna .= $phy{$grp_id}{$seq_id}{$pos}{$i};
+			$phy_rna{$grp_id}{$pos}{$seq_id} .= $phy{$grp_id}{$pos}{$seq_id}{$i};
 		}
-		my $aa = translate($rna);
-		print "$rna\t$aa\t$seq_id\n";
+		$phy_aa{$grp_id}{$pos}{$seq_id} = translate($phy_rna{$grp_id}{$pos}{$seq_id});
+		print "$phy_rna{$grp_id}{$pos}{$seq_id}\t$phy_aa{$grp_id}{$pos}{$seq_id}\t$seq_id\n";
 	}
+}
+
+sub phy_var {
+	my %type = ();
+	foreach my $grp_id (keys %phy_edit) {
+		foreach my $pos (keys $phy_edit{$grp_id}) {
+			my @phy_edit = ();
+			foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$pos}) {
+				push @phy_edit, $phy_edit{$grp_id}{$pos}{$seq_id};
+			}
+			$type{$grp_id}{$pos} = classphy(@phy_edit);
+		}
+	}
+	return %type;
 }
 
 sub base_in_aln {
@@ -348,4 +369,31 @@ sub codon_table {
 	'---' => '-',
     );
 	return %table;
+}
+
+sub classphy {
+	my @edit = @_;
+	my $type = "";
+	my ($a, $t, $c, $g) = (0, 0, 0, 0);
+	foreach my $base (@edit) {
+		$base = uc($base);
+		$a++ if $base eq 'A';
+		$t++ if $base eq 'T';
+		$c++ if $base eq 'C';
+		$g++ if $base eq 'G';
+	}
+	if ($a + $c + $t + $g == 0) {
+		$type = "unknown";
+	} elsif ($a > 0 && $t == 0 && $c == 0 && $g == 0) {
+		$type = "conserved";
+	} elsif ($a > 0 && $t == 0 && $c == 0 && $g > 0) {
+		$type = "hardwired";
+	} elsif ($a > 0 && ($t > 0 or $c > 0) && $g == 0) {
+		$type = "unfound";
+	} elsif ($a > 0 && ($t > 0 or $c > 0) && $g > 0) {
+		$type = "diversified";
+	} else {
+		$type = "unknown";
+	}
+	return $type;
 }
