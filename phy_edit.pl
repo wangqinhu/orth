@@ -7,7 +7,7 @@ use Bio::AlignIO;
 #----------------------------------------------------------
 # file and directory setting
 #----------------------------------------------------------
-my $nal_dir = "output_edit/nal";
+my $nal_dir = "output_test/nal";
 my $edit = "data/fg.edit.txt";
 my $output_dir = "output_dir";
 
@@ -17,7 +17,8 @@ my $output_dir = "output_dir";
 my %phy = ();
 my %edit = load_edit($edit);
 my %fungi = load_fungi();
-my $num_flank_codon = 2;
+my $num_flank_codon = 5;
+my %codon_table = codon_table();
 
 #----------------------------------------------------------
 # main
@@ -213,15 +214,18 @@ sub query_col {
 	foreach my $seq_id (sort by_fungi keys $seqref) {
 		my $left = $num_flank_codon * 3 + ($pos+2) % 3;
 		my $right = 2 - ($pos+2) % 3 + $num_flank_codon * 3;
-		print "$grp_id\t$seq_id\t$pos\t";
+		my $tag = substr($seq_id, 0, 2);
+		print "$grp_id\t$tag\t$pos\t";
+		my $rna = undef;
 		for (my $i = $pos - $left; $i <= $pos + $right; $i++) {
 			$phy{$grp_id}{$seq_id}{$pos}{$i} = base_in_aln($seqref, $seq_id, $i, $fg_id);
 			if ($i != $pos) {
 				$phy{$grp_id}{$seq_id}{$pos}{$i} = lc($phy{$grp_id}{$seq_id}{$pos}{$i});
 			}
-			print "$phy{$grp_id}{$seq_id}{$pos}{$i}";
+			$rna .= $phy{$grp_id}{$seq_id}{$pos}{$i};
 		}
-		print "\n";
+		my $aa = translate($rna);
+		print "$rna\t$aa\t$seq_id\n";
 	}
 }
 
@@ -262,4 +266,86 @@ sub by_num {
 
 sub by_fungi {
 	$fungi{substr($a,0,2)} <=> $fungi{substr($b,0,2)};
+}
+
+sub translate {
+	my $seq = uc(shift);
+	my $len = length $seq;
+	my $aa = undef;
+	for (my $i = 0; $i < $len; $i += 3) {
+		$aa .= $codon_table{substr($seq, $i, 3)};
+	}
+	return $aa;
+}
+
+sub codon_table {
+	my %table = (
+    'TCA' => 'S',
+    'TCC' => 'S',
+    'TCG' => 'S',
+    'TCT' => 'S',
+    'TTC' => 'F',
+    'TTT' => 'F',
+    'TTA' => 'L',
+    'TTG' => 'L',
+    'TAC' => 'Y',
+    'TAT' => 'Y',
+    'TAA' => '*',
+    'TAG' => '*',
+    'TGC' => 'C',
+    'TGT' => 'C',
+    'TGA' => '*',
+    'TGG' => 'W',
+    'CTA' => 'L',
+    'CTC' => 'L',
+    'CTG' => 'L',
+    'CTT' => 'L',
+    'CCA' => 'P',
+    'CCC' => 'P',
+    'CCG' => 'P',
+    'CCT' => 'P',
+    'CAC' => 'H',
+    'CAT' => 'H',
+    'CAA' => 'Q',
+    'CAG' => 'Q',
+    'CGA' => 'R',
+    'CGC' => 'R',
+    'CGG' => 'R',
+    'CGT' => 'R',
+    'ATA' => 'I',
+    'ATC' => 'I',
+    'ATT' => 'I',
+    'ATG' => 'M',
+    'ACA' => 'T',
+    'ACC' => 'T',
+    'ACG' => 'T',
+    'ACT' => 'T',
+    'AAC' => 'N',
+    'AAT' => 'N',
+    'AAA' => 'K',
+    'AAG' => 'K',
+    'AGC' => 'S',
+    'AGT' => 'S',
+    'AGA' => 'R',
+    'AGG' => 'R',
+    'GTA' => 'V',
+    'GTC' => 'V',
+    'GTG' => 'V',
+    'GTT' => 'V',
+    'GCA' => 'A',
+    'GCC' => 'A',
+    'GCG' => 'A',
+    'GCT' => 'A',
+    'GAC' => 'D',
+    'GAT' => 'D',
+    'GAA' => 'E',
+    'GAG' => 'E',
+    'GGA' => 'G',
+    'GGC' => 'G',
+    'GGG' => 'G',
+    'GGT' => 'G',
+	'XXX' => '_',
+	'---' => '-',
+    );
+	return %table;
 }
