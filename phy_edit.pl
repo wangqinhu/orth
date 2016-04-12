@@ -80,8 +80,11 @@ sub remove_redundancy {
 	my $fg_id = shift;
 	my %seq = ();
 	my %once = ();
+	my $tag = substr($fg_id, 0, 2);
+	$once{$tag} = $fg_id;
+	$seq{$fg_id} = $seqref->{$fg_id};
 	foreach my $seq_id (keys $seqref) {
-		my $tag = substr($seq_id, 0, 2);
+		$tag = substr($seq_id, 0, 2);
 		if (!exists $once{$tag}) {
 			$once{$tag} = $seq_id;
 			$seq{$seq_id} = $seqref->{$seq_id};
@@ -89,6 +92,8 @@ sub remove_redundancy {
 			my $sim_new = similarity($seqref->{$seq_id}, $seqref->{$fg_id});
 			my $sim_old = similarity($seq{$once{$tag}}, $seqref->{$fg_id});
 			if ($sim_new > $sim_old) {
+				delete $seq{$once{$tag}};
+				$once{$tag} = $seq_id;
 				$seq{$seq_id} = $seqref->{$seq_id};
 			}
 		}
