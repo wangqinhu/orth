@@ -94,7 +94,8 @@ sub analyze_phy_edit {
 		foreach my $fg_id (keys $phy_edit{$grp_id}) {
 			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
 				my ($fg, $fg_idc) = split /\|/, $fg_id;
-				print "# $grp_id $fg_idc $pos REL:$edit{$fg_id}{$pos} $phy_vt{$grp_id}{$fg_id}{$pos} ";
+				my $rel = sprintf "%2.2f", $edit{$fg_id}{$pos};
+				print "# $grp_id $fg_idc $pos REL:$rel $phy_vt{$grp_id}{$fg_id}{$pos} ";
 				my $cs_v = "";
 				foreach my $item (sort by_num keys $aacs{$grp_id}{$fg_id}{$pos}) {
 					$cs_v .= " " . $aacs{$grp_id}{$fg_id}{$pos}{$item};
