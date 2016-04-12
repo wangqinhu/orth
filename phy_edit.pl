@@ -19,9 +19,10 @@ my %edit = load_edit($edit);
 my %fungi = load_fungi();
 my $num_flank_codon = 5;
 my %codon_table = codon_table();
+my %phy_edit = ();
 my %phy_rna = ();
 my %phy_aa = ();
-my %phy_edit = ();
+my %phy_vt = ();
 
 #----------------------------------------------------------
 # main
@@ -53,7 +54,25 @@ sub phy_edit {
 			}
 		}
 	}
-	my %type = phy_var();
+	%phy_vt = phy_var();
+	analyze_phy_edit();
+}
+
+sub analyze_phy_edit {
+	foreach my $grp_id (keys %phy_edit) {
+		foreach my $fg_id (keys $phy_edit{$grp_id}) {
+			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
+				print "# $grp_id\t$fg_id\t$pos\t$phy_vt{$grp_id}{$fg_id}{$pos}\n";
+				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
+					print "\t\t\t";
+					print substr($seq_id, 0, 2), "\t";
+					print "$phy_rna{$grp_id}{$fg_id}{$pos}{$seq_id}\t";
+					print "$phy_aa{$grp_id}{$fg_id}{$pos}{$seq_id}\t";
+					print "$seq_id\n";
+				}
+			}
+		}
+	}
 }
 
 sub remove_redundancy {
@@ -219,32 +238,31 @@ sub query_col {
 	foreach my $seq_id (sort by_fungi keys $seqref) {
 		my $left = $num_flank_codon * 3 + ($pos+2) % 3;
 		my $right = 2 - ($pos+2) % 3 + $num_flank_codon * 3;
-		my $tag = substr($seq_id, 0, 2);
-		print "$grp_id\t$tag\t$pos\t";
-		$phy_rna{$grp_id}{$seq_id}{$pos} = "";
+		$phy_rna{$grp_id}{$fg_id}{$pos}{$seq_id} = "";
 		for (my $i = $pos - $left; $i <= $pos + $right; $i++) {
-			$phy{$grp_id}{$pos}{$seq_id}{$i} = base_in_aln($seqref, $seq_id, $i, $fg_id);
+			$phy{$grp_id}{$fg_id}{$pos}{$seq_id}{$i} = base_in_aln($seqref, $seq_id, $i, $fg_id);
 			if ($i != $pos) {
-				$phy{$grp_id}{$pos}{$seq_id}{$i} = lc($phy{$grp_id}{$pos}{$seq_id}{$i});
+				$phy{$grp_id}{$fg_id}{$pos}{$seq_id}{$i} = lc($phy{$grp_id}{$fg_id}{$pos}{$seq_id}{$i});
 			} else {
-				$phy_edit{$grp_id}{$pos}{$seq_id} = $phy{$grp_id}{$pos}{$seq_id}{$i};
+				$phy_edit{$grp_id}{$fg_id}{$pos}{$seq_id} = $phy{$grp_id}{$fg_id}{$pos}{$seq_id}{$i};
 			}
-			$phy_rna{$grp_id}{$pos}{$seq_id} .= $phy{$grp_id}{$pos}{$seq_id}{$i};
+			$phy_rna{$grp_id}{$fg_id}{$pos}{$seq_id} .= $phy{$grp_id}{$fg_id}{$pos}{$seq_id}{$i};
 		}
-		$phy_aa{$grp_id}{$pos}{$seq_id} = translate($phy_rna{$grp_id}{$pos}{$seq_id});
-		print "$phy_rna{$grp_id}{$pos}{$seq_id}\t$phy_aa{$grp_id}{$pos}{$seq_id}\t$seq_id\n";
+		$phy_aa{$grp_id}{$fg_id}{$pos}{$seq_id} = translate($phy_rna{$grp_id}{$fg_id}{$pos}{$seq_id});
 	}
 }
 
 sub phy_var {
 	my %type = ();
 	foreach my $grp_id (keys %phy_edit) {
-		foreach my $pos (keys $phy_edit{$grp_id}) {
-			my @phy_edit = ();
-			foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$pos}) {
-				push @phy_edit, $phy_edit{$grp_id}{$pos}{$seq_id};
+		foreach my $fg_id (keys $phy_edit{$grp_id}) {
+			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
+				my @phy_edit = ();
+				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
+					push @phy_edit, $phy_edit{$grp_id}{$fg_id}{$pos}{$seq_id};
+				}
+				$type{$grp_id}{$fg_id}{$pos} = classphy(@phy_edit);
 			}
-			$type{$grp_id}{$pos} = classphy(@phy_edit);
 		}
 	}
 	return %type;
