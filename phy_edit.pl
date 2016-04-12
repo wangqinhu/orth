@@ -7,9 +7,9 @@ use Bio::AlignIO;
 #----------------------------------------------------------
 # file and directory setting
 #----------------------------------------------------------
-my $nal_dir = "output_test/nal";
-my $edit = "data/fg.edit.txt";
-my $output_dir = "output_dir";
+my $nal_dir = $ARGV[0] || "output_test/nal";
+my $edit = $ARGV[1] || "data/fg.edit.txt";
+my $output_dir = $ARGV[2] || "output_dir";
 
 #----------------------------------------------------------
 # global var
@@ -65,10 +65,10 @@ sub caculate_aacs {
 	my $pwd = `pwd`;
 	chomp $pwd;
 	my $jsd_dir = $pwd . "/lib/score-conservation/scripts";
+	my $aa_aln = "$output_dir/seq.aln";
 	foreach my $grp_id (keys %phy_edit) {
 		foreach my $fg_id (keys $phy_edit{$grp_id}) {
 			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
-				my $aa_aln = "$grp_id.$pos";
 				open (ALN, ">$aa_aln") or die "Cannot open file $aa_aln: $!\n";
 				print ALN "CLUSTAL W\n";
 				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
@@ -94,20 +94,19 @@ sub analyze_phy_edit {
 	foreach my $grp_id (keys %phy_edit) {
 		foreach my $fg_id (keys $phy_edit{$grp_id}) {
 			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
-				print "# $grp_id $fg_id $pos $phy_vt{$grp_id}{$fg_id}{$pos}\n";
-				my $cs_i = "";
+				my ($fg, $fg_idc) = split /\|/, $fg_id;
+				print "# $grp_id $fg_idc $pos $phy_vt{$grp_id}{$fg_id}{$pos} ";
 				my $cs_v = "";
 				foreach my $item (sort by_num keys $aacs{$grp_id}{$fg_id}{$pos}) {
-					$cs_i .= " " . $item;
 					$cs_v .= " " . $aacs{$grp_id}{$fg_id}{$pos}{$item};
 				}
-				print "# cs_i: $cs_i\n";
-				print "# cs_v: $cs_v\n";
+				print "cs:[$cs_v ]\n";
 				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
-					print "\t", substr($seq_id, 0, 2), "\t";
+					my ($tag, $seq_idc) = split /\|/, $seq_id;
+					print "$tag\t";
 					print "$phy_rna{$grp_id}{$fg_id}{$pos}{$seq_id}\t";
 					print "$phy_aa{$grp_id}{$fg_id}{$pos}{$seq_id}\t";
-					print "$seq_id\n";
+					print "$seq_idc\n";
 				}
 			}
 		}
@@ -145,17 +144,17 @@ sub similarity {
 	my $seq2 = shift;
 	$seq1 =~ s/\-//g;
 	$seq2 =~ s/\-//g;
-	open (S1, ">seq1.fa") or die $!;
+	open (S1, ">$output_dir/seq1.fa") or die $!;
 	print S1 ">a\n$seq1\n";
 	close S1;
-	open (S2, ">seq2.fa") or die $!;
+	open (S2, ">$output_dir/seq2.fa") or die $!;
 	print S2 ">b\n$seq2\n";
 	close S2;
-	my $sw_align = `ssearch36 -3 -m 8 seq1.fa seq2.fa`;
+	my $sw_align = `ssearch36 -3 -m 8 $output_dir/seq1.fa $output_dir/seq2.fa`;
 	my @item = split /\s+/, $sw_align;
 	my $sim = $item[2];
-	unlink "seq1.fa";
-	unlink "seq2.fa";
+	unlink "$output_dir/seq1.fa";
+	unlink "$output_dir/seq2.fa";
 	return $sim;
 }
 
@@ -445,7 +444,7 @@ sub classphy {
 		$g++ if $base eq 'G';
 	}
 	if ($a <= 1 && ($c + $t + $g == 0)) {
-		$type = "unknown";
+		$type = "NA";
 	} elsif ($a > 0 && $t == 0 && $c == 0 && $g == 0) {
 		$type = "conserved";
 	} elsif ($a > 0 && $t == 0 && $c == 0 && $g > 0) {
@@ -457,5 +456,7 @@ sub classphy {
 	} else {
 		$type = "unknown";
 	}
+	my $tot = $a+$t+$c+$g;
+	$type .=  " ( A:$a G:$g C:$c T:$t / Total:$tot ) ";
 	return $type;
 }
