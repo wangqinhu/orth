@@ -1,0 +1,3 @@
+[submodule "lib/score-conservation"]
+	path = lib/score-conservation
+	url = git@github.com:joemarct/score-conservation.git
