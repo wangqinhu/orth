@@ -405,7 +405,7 @@ sub classphy {
 		$c++ if $base eq 'C';
 		$g++ if $base eq 'G';
 	}
-	if ($a + $c + $t + $g == 0) {
+	if ($a <= 1 && ($c + $t + $g == 0)) {
 		$type = "unknown";
 	} elsif ($a > 0 && $t == 0 && $c == 0 && $g == 0) {
 		$type = "conserved";
