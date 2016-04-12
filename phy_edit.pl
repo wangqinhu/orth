@@ -14,11 +14,11 @@ my $output_dir = $ARGV[2] || "output_dir";
 #----------------------------------------------------------
 # global var
 #----------------------------------------------------------
-my %phy = ();
-my %edit = load_edit($edit);
-my %fungi = load_fungi();
 my $num_flank_codon = 5;
+my %fungi = load_fungi();
 my %codon_table = codon_table();
+my %edit = load_edit($edit);
+my %phy = ();
 my %phy_edit = ();
 my %phy_rna = ();
 my %phy_aa = ();
@@ -47,8 +47,7 @@ sub phy_edit {
 		next if @fg < 1;
 		foreach my $fg_id (@fg) {
 			if (has_edit_in_fg($fg_id)) {
-				foreach my $edit_i (sort by_num keys $edit{$fg_id}) {
-					my $pos = $edit{$fg_id}{$edit_i};
+				foreach my $pos (sort by_num keys $edit{$fg_id}) {
 					%seq = remove_redundancy(\%seq, $fg_id);
 					query_col($group, $fg_id, $pos, \%seq);
 				}
@@ -95,12 +94,12 @@ sub analyze_phy_edit {
 		foreach my $fg_id (keys $phy_edit{$grp_id}) {
 			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
 				my ($fg, $fg_idc) = split /\|/, $fg_id;
-				print "# $grp_id $fg_idc $pos $phy_vt{$grp_id}{$fg_id}{$pos} ";
+				print "# $grp_id $fg_idc $pos REL:$edit{$fg_id}{$pos} $phy_vt{$grp_id}{$fg_id}{$pos} ";
 				my $cs_v = "";
 				foreach my $item (sort by_num keys $aacs{$grp_id}{$fg_id}{$pos}) {
 					$cs_v .= " " . $aacs{$grp_id}{$fg_id}{$pos}{$item};
 				}
-				print "cs:[$cs_v ]\n";
+				print "CS:[$cs_v ]\n";
 				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
 					my ($tag, $seq_idc) = split /\|/, $seq_id;
 					print "$tag\t";
@@ -187,7 +186,6 @@ sub create_dir {
 sub load_edit {
 	my $file = shift;
 	my %edit = ();
-	my %site_num = ();
 	open (IN, $file) or die "Cannot open file $file: $!\n";
 	while (<IN>) {
 		chomp;
@@ -208,12 +206,7 @@ sub load_edit {
 		}
 		next unless (defined $gene_id);
 		$gene_id = "Fg|" . $gene_id;
-		if (! exists $site_num{$gene_id}) {
-			$site_num{$gene_id} = 1;
-		} else {
-			$site_num{$gene_id}++;
-		}
-		$edit{$gene_id}{$site_num{$gene_id}} = $edit_site;
+		$edit{$gene_id}{$edit_site} = $w[6];
 	}
 	close IN;
 	return %edit;
