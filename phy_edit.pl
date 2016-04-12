@@ -23,6 +23,7 @@ my %phy_edit = ();
 my %phy_rna = ();
 my %phy_aa = ();
 my %phy_vt = ();
+my %aacs = ();
 
 #----------------------------------------------------------
 # main
@@ -55,17 +56,55 @@ sub phy_edit {
 		}
 	}
 	%phy_vt = phy_var();
+	%aacs = caculate_aacs();
 	analyze_phy_edit();
+}
+
+sub caculate_aacs {
+	my %score = ();
+	my $pwd = `pwd`;
+	chomp $pwd;
+	my $jsd_dir = $pwd . "/lib/score-conservation/scripts";
+	foreach my $grp_id (keys %phy_edit) {
+		foreach my $fg_id (keys $phy_edit{$grp_id}) {
+			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
+				my $aa_aln = "$grp_id.$pos";
+				open (ALN, ">$aa_aln") or die "Cannot open file $aa_aln: $!\n";
+				print ALN "CLUSTAL W\n";
+				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
+					print ALN substr($seq_id, 0, 2), "\t$phy_aa{$grp_id}{$fg_id}{$pos}{$seq_id}\n";
+				}
+				close ALN;
+				my $jsd_out = `$jsd_dir/score_conservation.py -d $jsd_dir/distributions/blosum62.distribution -m $jsd_dir/matrix/blosum62.bla $aa_aln`;
+				my @jsd = split /\n/, $jsd_out;
+				foreach my $line (@jsd) {
+					next if $line =~ /^\#/;
+					next if $line =~ /^\s*$/;
+					my @w = split /\t/, $line;
+					$score{$grp_id}{$fg_id}{$pos}{$w[0]} = $w[1];
+				}
+			}
+		}
+	}
+	unlink "$aa_aln";
+	return %score;
 }
 
 sub analyze_phy_edit {
 	foreach my $grp_id (keys %phy_edit) {
 		foreach my $fg_id (keys $phy_edit{$grp_id}) {
 			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
-				print "# $grp_id\t$fg_id\t$pos\t$phy_vt{$grp_id}{$fg_id}{$pos}\n";
+				print "# $grp_id $fg_id $pos $phy_vt{$grp_id}{$fg_id}{$pos}\n";
+				my $cs_i = "";
+				my $cs_v = "";
+				foreach my $item (sort by_num keys $aacs{$grp_id}{$fg_id}{$pos}) {
+					$cs_i .= " " . $item;
+					$cs_v .= " " . $aacs{$grp_id}{$fg_id}{$pos}{$item};
+				}
+				print "# cs_i: $cs_i\n";
+				print "# cs_v: $cs_v\n";
 				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
-					print "\t\t\t";
-					print substr($seq_id, 0, 2), "\t";
+					print "\t", substr($seq_id, 0, 2), "\t";
 					print "$phy_rna{$grp_id}{$fg_id}{$pos}{$seq_id}\t";
 					print "$phy_aa{$grp_id}{$fg_id}{$pos}{$seq_id}\t";
 					print "$seq_id\n";
@@ -388,7 +427,7 @@ sub codon_table {
     'GGC' => 'G',
     'GGG' => 'G',
     'GGT' => 'G',
-	'XXX' => '_',
+	'XXX' => '-',
 	'---' => '-',
     );
 	return %table;
