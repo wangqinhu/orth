@@ -17,14 +17,17 @@ my $output_dir = $ARGV[2] || "output_dir";
 my $num_flank_codon = 5;
 my %fungi = load_fungi();
 my %codon_table = codon_table();
+my %aa_list = aa_list();
 my %edit = load_edit($edit);
 my %phy = ();
-my %phy_edit = ();
+my %phy_edit_nt = ();
+my %phy_edit_aa = ();
+my %phy_edit_aa_a2g = ();
 my %phy_rna = ();
 my %phy_aa = ();
 my %nt_vt = ();
 my %aa_vt = ();
-my %aacs = ();
+my %aa_cs = ();
 
 #----------------------------------------------------------
 # main
@@ -57,22 +60,23 @@ sub phy_edit {
 		}
 	}
 	%nt_vt = nt_var();
-	%aacs = caculate_aacs();
+	%aa_vt = aa_var();
+	%aa_cs = aa_cs();
 	analyze_phy_edit();
 }
 
-sub caculate_aacs {
+sub aa_cs {
 	my %score = ();
 	my $pwd = `pwd`;
 	chomp $pwd;
 	my $jsd_dir = $pwd . "/lib/score-conservation/scripts";
 	my $aa_aln = "$output_dir/seq.aln";
-	foreach my $grp_id (keys %phy_edit) {
-		foreach my $fg_id (keys $phy_edit{$grp_id}) {
-			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
+	foreach my $grp_id (keys %phy_edit_nt) {
+		foreach my $fg_id (keys $phy_edit_nt{$grp_id}) {
+			foreach my $pos (keys $phy_edit_nt{$grp_id}{$fg_id}) {
 				open (ALN, ">$aa_aln") or die "Cannot open file $aa_aln: $!\n";
 				print ALN "CLUSTAL W\n";
-				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
+				foreach my $seq_id (sort by_fungi keys $phy_edit_nt{$grp_id}{$fg_id}{$pos}) {
 					print ALN substr($seq_id, 0, 2), "\t$phy_aa{$grp_id}{$fg_id}{$pos}{$seq_id}\n";
 				}
 				close ALN;
@@ -92,18 +96,21 @@ sub caculate_aacs {
 }
 
 sub analyze_phy_edit {
-	foreach my $grp_id (keys %phy_edit) {
-		foreach my $fg_id (keys $phy_edit{$grp_id}) {
-			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
+	foreach my $grp_id (keys %phy_edit_nt) {
+		foreach my $fg_id (keys $phy_edit_nt{$grp_id}) {
+			foreach my $pos (keys $phy_edit_nt{$grp_id}{$fg_id}) {
 				my ($fg, $fg_idc) = split /\|/, $fg_id;
 				my $rel = sprintf "%2.2f", $edit{$fg_id}{$pos};
-				print "# $grp_id $fg_idc $pos REL:$rel $nt_vt{$grp_id}{$fg_id}{$pos} ";
 				my $cs_v = "";
-				foreach my $item (sort by_num keys $aacs{$grp_id}{$fg_id}{$pos}) {
-					$cs_v .= " " . $aacs{$grp_id}{$fg_id}{$pos}{$item};
+				foreach my $item (sort by_num keys $aa_cs{$grp_id}{$fg_id}{$pos}) {
+					$cs_v .= " " . $aa_cs{$grp_id}{$fg_id}{$pos}{$item};
 				}
-				print "CS:[$cs_v ]\n";
-				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
+				print "# $grp_id $fg_idc $pos ";
+				print "REL:$rel ";
+				print "$nt_vt{$grp_id}{$fg_id}{$pos} ";
+				print "$aa_vt{$grp_id}{$fg_id}{$pos} ";
+				print "aa_cs:[$cs_v ]\n";
+				foreach my $seq_id (sort by_fungi keys $phy_edit_nt{$grp_id}{$fg_id}{$pos}) {
 					my ($tag, $seq_idc) = split /\|/, $seq_id;
 					print "$tag\t";
 					print "$phy_rna{$grp_id}{$fg_id}{$pos}{$seq_id}\t";
@@ -283,24 +290,48 @@ sub query_col {
 			if ($i != $pos) {
 				$phy{$grp_id}{$fg_id}{$pos}{$seq_id}{$i} = lc($phy{$grp_id}{$fg_id}{$pos}{$seq_id}{$i});
 			} else {
-				$phy_edit{$grp_id}{$fg_id}{$pos}{$seq_id} = $phy{$grp_id}{$fg_id}{$pos}{$seq_id}{$i};
+				$phy_edit_nt{$grp_id}{$fg_id}{$pos}{$seq_id} = $phy{$grp_id}{$fg_id}{$pos}{$seq_id}{$i};
 			}
 			$phy_rna{$grp_id}{$fg_id}{$pos}{$seq_id} .= $phy{$grp_id}{$fg_id}{$pos}{$seq_id}{$i};
 		}
 		$phy_aa{$grp_id}{$fg_id}{$pos}{$seq_id} = translate($phy_rna{$grp_id}{$fg_id}{$pos}{$seq_id});
+		$phy_edit_aa{$grp_id}{$fg_id}{$pos}{$seq_id} = substr($phy_aa{$grp_id}{$fg_id}{$pos}{$seq_id}, $num_flank_codon, 1);
+		if ($seq_id eq $fg_id) {
+			my $aa_a2g = substr($phy_rna{$grp_id}{$fg_id}{$pos}{$seq_id}, 3 * $num_flank_codon, 3);
+			$aa_a2g =~ s/A/G/;
+			$aa_a2g = translate($aa_a2g);
+			$phy_edit_aa_a2g{$grp_id}{$fg_id}{$pos} = $aa_a2g;
+		}
 	}
 }
 
 sub nt_var {
 	my %type = ();
-	foreach my $grp_id (keys %phy_edit) {
-		foreach my $fg_id (keys $phy_edit{$grp_id}) {
-			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
-				my @phy_edit = ();
-				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
-					push @phy_edit, $phy_edit{$grp_id}{$fg_id}{$pos}{$seq_id};
+	foreach my $grp_id (keys %phy_edit_nt) {
+		foreach my $fg_id (keys $phy_edit_nt{$grp_id}) {
+			foreach my $pos (keys $phy_edit_nt{$grp_id}{$fg_id}) {
+				my @phy_edit_nt = ();
+				foreach my $seq_id (sort by_fungi keys $phy_edit_nt{$grp_id}{$fg_id}{$pos}) {
+					push @phy_edit_nt, $phy_edit_nt{$grp_id}{$fg_id}{$pos}{$seq_id};
 				}
-				$type{$grp_id}{$fg_id}{$pos} = class_nt(@phy_edit);
+				$type{$grp_id}{$fg_id}{$pos} = class_nt(@phy_edit_nt);
+			}
+		}
+	}
+	return %type;
+}
+
+sub aa_var {
+	my %type = ();
+	foreach my $grp_id (keys %phy_edit_aa) {
+		foreach my $fg_id (keys $phy_edit_aa{$grp_id}) {
+			foreach my $pos (keys $phy_edit_aa{$grp_id}{$fg_id}) {
+				my @phy_edit_aa = ();
+				foreach my $seq_id (sort by_fungi keys $phy_edit_aa{$grp_id}{$fg_id}{$pos}) {
+					push @phy_edit_aa, $phy_edit_aa{$grp_id}{$fg_id}{$pos}{$seq_id};
+				}
+				my $aa_a2g = $phy_edit_aa_a2g{$grp_id}{$fg_id}{$pos};
+				$type{$grp_id}{$fg_id}{$pos} = class_aa(\@phy_edit_aa, $aa_a2g);
 			}
 		}
 	}
@@ -359,6 +390,96 @@ sub translate {
 		}
 	}
 	return $aa;
+}
+
+sub class_nt {
+	my @edit = @_;
+	my $type = "";
+	my ($a, $t, $c, $g) = (0, 0, 0, 0);
+	foreach my $base (@edit) {
+		$base = uc($base);
+		$a++ if $base eq 'A';
+		$t++ if $base eq 'T';
+		$c++ if $base eq 'C';
+		$g++ if $base eq 'G';
+	}
+	if ($a <= 1 && ($c + $t + $g == 0)) {
+		$type = "NA";
+	} elsif ($a > 0 && $t == 0 && $c == 0 && $g == 0) {
+		$type = "conserved";
+	} elsif ($a > 0 && $t == 0 && $c == 0 && $g > 0) {
+		$type = "hardwired";
+	} elsif ($a > 0 && ($t > 0 or $c > 0) && $g == 0) {
+		$type = "unfound";
+	} elsif ($a > 0 && ($t > 0 or $c > 0) && $g > 0) {
+		$type = "diversified";
+	} else {
+		$type = "unknown";
+	}
+	my $tot = $a+$t+$c+$g;
+	$type .=  " ( A:$a G:$g C:$c T:$t / Total:$tot ) ";
+	return "nt:$type";
+}
+
+sub aa_list {
+	my %aa_list = ();
+	my @aa = qw(A C D E F G H I K L M N P Q R S T V W Y);
+	foreach my $aa (@aa) {
+		$aa_list{$aa} = 1;
+	}
+	return %aa_list;
+}
+
+sub is_aa {
+	my $char = shift;
+	return 1 if exists $aa_list{$char};
+	return 0;
+}
+
+sub class_aa {
+	my $edit = shift;
+	my @edit = @{$edit};
+	my $aa_a2g = shift;
+	my $aa_ref = $edit[0];
+	my $type = "NA";
+
+	return $type unless is_aa($aa_a2g);
+	if ($aa_ref eq $aa_a2g) {
+		$type = "syn";
+		return "syn";
+	} else {
+		$type = "non";
+	}
+
+	my %edit = ($aa_ref => 0, $aa_a2g => 0, "other" => 0);
+	foreach my $aa (@edit) {
+		$aa = uc($aa);
+		next unless is_aa($aa);
+		if ($aa eq $aa_ref) {
+			$edit{$aa_ref}++;
+		} elsif ($aa eq $aa_a2g) {
+			$edit{$aa_a2g}++;
+		} else {
+			$edit{"other"}++;
+		}
+	}
+
+	if ($edit{$aa_ref} == 1 && $edit{$aa_a2g} == 0 && $edit{"other"} == 0) {
+		$type = "NA";
+	} elsif ($edit{$aa_ref} > 1 && $edit{$aa_a2g} == 0 && $edit{"other"} == 0) {
+		$type = "conserved";
+	} elsif ($edit{$aa_ref} >= 1 && $edit{$aa_a2g} >= 1 && $edit{"other"} == 0) {
+		$type = "hardwired";
+	} elsif ($edit{$aa_ref} >= 1 && $edit{$aa_a2g} == 0 && $edit{"other"} >= 1) {
+		$type = "unfound";
+	} elsif ($edit{$aa_ref} >= 1 && $edit{$aa_a2g} >= 1 && $edit{"other"} >= 1) {
+		$type = "diversified";
+	} else {
+		$type = "unknown";
+	}
+	my $tot = $edit{$aa_ref}+$edit{$aa_a2g}+$edit{"other"};
+	$type .=  " ( $aa_ref:$edit{$aa_ref} $aa_a2g:$edit{$aa_a2g} Other:$edit{'other'} / Total:$tot ) ";
+	return "aa:$type";
 }
 
 sub codon_table {
@@ -429,33 +550,4 @@ sub codon_table {
     'GGT' => 'G',
     );
 	return %table;
-}
-
-sub class_nt {
-	my @edit = @_;
-	my $type = "";
-	my ($a, $t, $c, $g) = (0, 0, 0, 0);
-	foreach my $base (@edit) {
-		$base = uc($base);
-		$a++ if $base eq 'A';
-		$t++ if $base eq 'T';
-		$c++ if $base eq 'C';
-		$g++ if $base eq 'G';
-	}
-	if ($a <= 1 && ($c + $t + $g == 0)) {
-		$type = "NA";
-	} elsif ($a > 0 && $t == 0 && $c == 0 && $g == 0) {
-		$type = "conserved";
-	} elsif ($a > 0 && $t == 0 && $c == 0 && $g > 0) {
-		$type = "hardwired";
-	} elsif ($a > 0 && ($t > 0 or $c > 0) && $g == 0) {
-		$type = "unfound";
-	} elsif ($a > 0 && ($t > 0 or $c > 0) && $g > 0) {
-		$type = "diversified";
-	} else {
-		$type = "unknown";
-	}
-	my $tot = $a+$t+$c+$g;
-	$type .=  " ( A:$a G:$g C:$c T:$t / Total:$tot ) ";
-	return "nt:$type";
 }
