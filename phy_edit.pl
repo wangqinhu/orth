@@ -48,8 +48,9 @@ sub phy_edit {
 		foreach my $fg_id (@fg) {
 			if (has_edit_in_fg($fg_id)) {
 				foreach my $pos (sort by_num keys $edit{$fg_id}) {
-					%seq = remove_redundancy(\%seq, $fg_id);
-					query_col($group, $fg_id, $pos, \%seq);
+					my %seq_valid = %seq;
+					%seq_valid = remove_redundancy(\%seq_valid, $fg_id);
+					query_col($group, $fg_id, $pos, \%seq_valid);
 				}
 			}
 		}
@@ -310,6 +311,7 @@ sub base_in_aln {
 	my $seq_id = shift;
 	my $pos = shift;
 	my $fg_id = shift;
+	my $base = 'X';
 
 	# refseq in FG, without gap
 	my $fgseq0 = $seqref->{$fg_id};
@@ -320,7 +322,6 @@ sub base_in_aln {
 	my @fgseq = split //, $fgseq;
 	# cacualte gap number
 	my $gap = 0;
-	my $base = 'X';
 	return $base if $pos >= @fgseq;
 	for (my $i = 0; $i < $pos; $i++) {
 		return $base if $i >= @fgseq0;
@@ -349,7 +350,12 @@ sub translate {
 	my $len = length $seq;
 	my $aa = undef;
 	for (my $i = 0; $i < $len; $i += 3) {
-		$aa .= $codon_table{substr($seq, $i, 3)};
+		my $codon = substr($seq, $i, 3);
+		if ($codon =~ /[A|T|C|G]{3}/) {
+			$aa .= $codon_table{$codon};
+		} else {
+			$aa .= "-";
+		}
 	}
 	return $aa;
 }
@@ -420,8 +426,6 @@ sub codon_table {
     'GGC' => 'G',
     'GGG' => 'G',
     'GGT' => 'G',
-	'XXX' => '-',
-	'---' => '-',
     );
 	return %table;
 }
