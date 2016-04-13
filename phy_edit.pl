@@ -22,7 +22,8 @@ my %phy = ();
 my %phy_edit = ();
 my %phy_rna = ();
 my %phy_aa = ();
-my %phy_vt = ();
+my %nt_vt = ();
+my %aa_vt = ();
 my %aacs = ();
 
 #----------------------------------------------------------
@@ -55,7 +56,7 @@ sub phy_edit {
 			}
 		}
 	}
-	%phy_vt = phy_var();
+	%nt_vt = nt_var();
 	%aacs = caculate_aacs();
 	analyze_phy_edit();
 }
@@ -96,7 +97,7 @@ sub analyze_phy_edit {
 			foreach my $pos (keys $phy_edit{$grp_id}{$fg_id}) {
 				my ($fg, $fg_idc) = split /\|/, $fg_id;
 				my $rel = sprintf "%2.2f", $edit{$fg_id}{$pos};
-				print "# $grp_id $fg_idc $pos REL:$rel $phy_vt{$grp_id}{$fg_id}{$pos} ";
+				print "# $grp_id $fg_idc $pos REL:$rel $nt_vt{$grp_id}{$fg_id}{$pos} ";
 				my $cs_v = "";
 				foreach my $item (sort by_num keys $aacs{$grp_id}{$fg_id}{$pos}) {
 					$cs_v .= " " . $aacs{$grp_id}{$fg_id}{$pos}{$item};
@@ -290,7 +291,7 @@ sub query_col {
 	}
 }
 
-sub phy_var {
+sub nt_var {
 	my %type = ();
 	foreach my $grp_id (keys %phy_edit) {
 		foreach my $fg_id (keys $phy_edit{$grp_id}) {
@@ -299,7 +300,7 @@ sub phy_var {
 				foreach my $seq_id (sort by_fungi keys $phy_edit{$grp_id}{$fg_id}{$pos}) {
 					push @phy_edit, $phy_edit{$grp_id}{$fg_id}{$pos}{$seq_id};
 				}
-				$type{$grp_id}{$fg_id}{$pos} = classphy(@phy_edit);
+				$type{$grp_id}{$fg_id}{$pos} = class_nt(@phy_edit);
 			}
 		}
 	}
@@ -430,7 +431,7 @@ sub codon_table {
 	return %table;
 }
 
-sub classphy {
+sub class_nt {
 	my @edit = @_;
 	my $type = "";
 	my ($a, $t, $c, $g) = (0, 0, 0, 0);
@@ -456,5 +457,5 @@ sub classphy {
 	}
 	my $tot = $a+$t+$c+$g;
 	$type .=  " ( A:$a G:$g C:$c T:$t / Total:$tot ) ";
-	return $type;
+	return "nt:$type";
 }
