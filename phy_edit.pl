@@ -5,16 +5,20 @@ use warnings;
 use Bio::AlignIO;
 
 #----------------------------------------------------------
-# file and directory setting
+# i/o setting
 #----------------------------------------------------------
 my $nal_dir = $ARGV[0] || "output_test/nal";
 my $edit = $ARGV[1] || "data/fg.edit.txt";
 my $output_dir = $ARGV[2] || "output_dir";
+#my $pick_string = "Fg";
+#my @fungi = qw(Fg Fv Fs Ac Uv Cg Vd Sa Mo Nc Nt Sm Sb Pm);
+my $pick_string = "Nc";
+my @fungi = qw(Nc Nt Sm Sb Pm Mo Fg Fv Fs Ac Uv Cg Vd Sa);
+my $num_flank_codon = 5;
 
 #----------------------------------------------------------
 # global var
 #----------------------------------------------------------
-my $num_flank_codon = 5;
 my %fungi = load_fungi();
 my %codon_table = codon_table();
 my %aa_list = aa_list();
@@ -80,7 +84,7 @@ sub aa_cs {
 					print ALN substr($seq_id, 0, 2), "\t$phy_aa{$grp_id}{$fg_id}{$pos}{$seq_id}\n";
 				}
 				close ALN;
-				my $jsd_out = `$jsd_dir/score_conservation.py -d $jsd_dir/distributions/blosum62.distribution -m $jsd_dir/matrix/blosum62.bla $aa_aln`;
+				my $jsd_out = `$jsd_dir/score_conservation.py -d $jsd_dir/distributions/blosum62.distribution -m $jsd_dir/matrix/blosum62.bla -w 0 $aa_aln`;
 				my @jsd = split /\n/, $jsd_out;
 				foreach my $line (@jsd) {
 					next if $line =~ /^\#/;
@@ -171,7 +175,7 @@ sub pick_fg {
 	my $hashref = shift;
 	my @fg = ();
 	foreach my $seq_id (keys $hashref) {
-		if ($seq_id =~ /^Fg/) {
+		if ($seq_id =~ /^$pick_string/) {
 			push @fg, $seq_id;
 		}
 	}
@@ -215,7 +219,7 @@ sub load_edit {
 			warn "invlaid edit site found in $_\n";
 		}
 		next unless (defined $gene_id);
-		$gene_id = "Fg|" . $gene_id;
+		$gene_id = "$pick_string|" . $gene_id;
 		$edit{$gene_id}{$edit_site} = $w[6];
 	}
 	close IN;
@@ -266,7 +270,6 @@ sub load_fasta {
 
 sub load_fungi {
 	my %fungi = ();
-	my @fungi = qw(Fg Fv Fs Ac Uv Cg Vd Sa Mo Nc Nt Sm Sb Pm Bc Ss Pp An Tr Ci Ep Pt Pn Dh Po Ca Sc Yl Sp Cn Pg Um);
 	my $i = 0;
 	foreach my $id (@fungi) {
 		$fungi{$id} = $i;
