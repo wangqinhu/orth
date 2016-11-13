@@ -7,14 +7,17 @@ use Bio::AlignIO;
 #----------------------------------------------------------
 # i/o setting
 #----------------------------------------------------------
-my $nal_dir = $ARGV[0] || "output_test/nal";
-my $edit = $ARGV[1] || "data/fg.edit.txt";
+my $nal_dir = $ARGV[0] || "output/nal";
+my $edit = $ARGV[1] || "data/nc.edit.id";
 my $output_dir = $ARGV[2] || "output_dir";
-#my $pick_string = "Fg";
-#my @fungi = qw(Fg Fv Fs Ac Uv Cg Vd Sa Mo Nc Nt Sm Sb Pm);
-my $pick_string = "Nc";
-my @fungi = qw(Nc Nt Sm Sb Pm Mo Fg Fv Fs Ac Uv Cg Vd Sa);
 my $num_flank_codon = 5;
+my $pick_string = "Nc" || "Fg";
+my @fungi = ();
+if ($pick_string eq "Fg") {
+	@fungi = qw(Fg Fv Fs Ac Uv Cg Vd Sa Mo Nc Nt Sm Sb Pm);
+} elsif ($pick_string eq "Nc") {
+	@fungi = qw(Nc Nt Sm Sb Pm Mo Fg Fv Fs Ac Uv Cg Vd Sa);
+}
 
 #----------------------------------------------------------
 # global var
@@ -51,6 +54,7 @@ sub phy_edit {
 		my $fas = "$output_dir/fas/$group.fa";
 		my %seq = nal2fasta($nal, $fas);
 		next unless %seq;
+		# fg: origin stand for Fusarium graminearum (fg), now stand for the reference fungi gene (fg)
 		my @fg = pick_fg(\%seq);
 		next if @fg < 1;
 		foreach my $fg_id (@fg) {

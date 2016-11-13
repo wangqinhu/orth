@@ -1,5 +1,0 @@
-#!/bin/bash
-
-rm -rf output.*
-mv phy_edit.o* logs/
-mv phy.*.txt logs/
